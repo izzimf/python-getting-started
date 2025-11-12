@@ -1,66 +1,63 @@
-name: Python CI - Security Scan
+name: Python CI with Security Scans
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
-  security_scan:
+  build-and-scan:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    # 1️⃣ Checkout
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      # 2. Set up Python
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
+    # 2️⃣ Set up Python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
 
-      # 3. Install dependencies
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install bandit
+    # 3️⃣ Install dependencies
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # 4. Run Bandit, generate reports
-      - name: Run Bandit SAST Scan (do not fail pipeline)
-        run: |
-          # install jq (for parsing json)
-          sudo apt-get update && sudo apt-get install -y jq
+    # 4️⃣ Run Bandit (SAST)
+    - name: Run Bandit security scan
+      run: |
+        pip install bandit
+        bandit -r . -f html -o bandit-report.html || true
+      continue-on-error: true
 
-          # run bandit: generate HTML and JSON reports
-          bandit -r . -f html -o bandit-report.html -f json -o bandit-report.json || true
+    # 5️⃣ Upload Bandit report
+    - name: Upload Bandit HTML report
+      uses: actions/upload-artifact@v3
+      with:
+        name: bandit-report
+        path: bandit-report.html
 
-          # ensure reports dir exists and move reports there
-          mkdir -p reports
-          mv bandit-report.html reports/ || true
-          mv bandit-report.json reports/ || true
+    # 6️⃣ Run Snyk (SCA)
+    - name: Install Snyk CLI
+      run: npm install -g snyk
 
-          # count findings in JSON
-          if [ -f reports/bandit-report.json ]; then
-            ISSUES=$(jq '.results | length' reports/bandit-report.json)
-          else
-            echo "Bandit JSON report not found"
-            ISSUES=0
-          fi
+    - name: Authenticate Snyk
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      run: snyk auth $SNYK_TOKEN
 
-          echo "Bandit findings: $ISSUES"
+    - name: Run Snyk scan
+      run: |
+        mkdir -p snyk-reports
+        snyk test --all-projects --json-file-output=snyk-reports/snyk-report.json || true
 
-          # Warning in logs instead of failing pipeline
-          if [ "$ISSUES" -gt 0 ]; then
-            echo "::warning::Bandit found $ISSUES issues"
-          fi
-
-      # 5. Upload Bandit reports
-      - name: Upload Bandit Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: bandit-report
-          path: reports/
+    # 7️⃣ Upload Snyk report
+    - name: Upload Snyk JSON report
+      uses: actions/upload-artifact@v3
+      with:
+        name: snyk-report
+        path: snyk-reports/snyk-report.json
