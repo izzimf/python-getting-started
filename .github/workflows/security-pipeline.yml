@@ -21,7 +21,7 @@ jobs:
       with:
         python-version: '3.11'
 
-    # --- Install dependencies ---
+    # --- Install Python dependencies ---
     - name: Install dependencies
       run: |
         pip install -r requirements.txt || echo "No requirements file"
@@ -34,19 +34,20 @@ jobs:
         mkdir -p reports
         mv bandit-report.html reports/
 
-    # --- Install OWASP Dependency-Check ---
+    # --- Install OWASP Dependency-Check CLI ---
     - name: Install OWASP Dependency-Check
       run: |
-        sudo apt-get update
-        sudo apt-get install -y dependency-check
+        wget https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.1/dependency-check-8.4.1-release.zip
+        unzip dependency-check-8.4.1-release.zip -d dependency-check
+        chmod +x dependency-check/dependency-check.sh
 
     # --- Run OWASP Dependency-Check ---
     - name: Run Dependency-Check
       run: |
-        dependency-check --project "PythonApp" --scan . --format "HTML" --out ./reports/
+        ./dependency-check/dependency-check.sh --project "PythonApp" --scan . --format "HTML" --out ./reports/
 
-    # --- Upload reports ---
-    - name: Upload reports as artifacts
+    # --- Upload reports as artifacts ---
+    - name: Upload reports
       uses: actions/upload-artifact@v4
       with:
         name: security-reports
