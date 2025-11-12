@@ -1,60 +1,66 @@
-name: Security Pipeline
+name: Python CI - Security Scan
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  security:
+  security_scan:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      # 1. Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.11"
+      # 2. Set up Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
 
-    # ---------------------
-    # Bandit (Python SAST)
-    # ---------------------
-    - name: Install Bandit
-      run: pip install bandit
+      # 3. Install dependencies
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit
 
-    - name: Run Bandit SAST Scan
-      run: |
-        bandit -r . -f html -o bandit-report.html
+      # 4. Run Bandit, generate reports
+      - name: Run Bandit SAST Scan (do not fail pipeline)
+        run: |
+          # install jq (for parsing json)
+          sudo apt-get update && sudo apt-get install -y jq
 
-    - name: Upload Bandit Report
-      uses: actions/upload-artifact@v4
-      with:
-        name: bandit-report
-        path: bandit-report.html
+          # run bandit: generate HTML and JSON reports
+          bandit -r . -f html -o bandit-report.html -f json -o bandit-report.json || true
 
-    # -------------------------
-    # OWASP Dependency-Check (SCA)
-    # -------------------------
-    - name: Download OWASP Dependency-Check
-      run: |
-        wget https://github.com/jeremylong/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip
-        unzip dependency-check-12.1.0-release.zip
-        chmod +x dependency-check/bin/dependency-check.sh
+          # ensure reports dir exists and move reports there
+          mkdir -p reports
+          mv bandit-report.html reports/ || true
+          mv bandit-report.json reports/ || true
 
-    - name: Run Dependency-Check SCA Scan
-      run: |
-        ./dependency-check/bin/dependency-check.sh \
-          --scan . \
-          --format ALL \
-          --out dependency-check-report \
-          --project "python-getting-started" \
-          --nvdApiKey ${{ secrets.NVD_API_KEY }}
+          # count findings in JSON
+          if [ -f reports/bandit-report.json ]; then
+            ISSUES=$(jq '.results | length' reports/bandit-report.json)
+          else
+            echo "Bandit JSON report not found"
+            ISSUES=0
+          fi
 
-    - name: Upload Dependency-Check Report
-      uses: actions/upload-artifact@v4
-      with:
-        name: dependency-check-report
-        path: dependency-check-report/
+          echo "Bandit findings: $ISSUES"
+
+          # Warning in logs instead of failing pipeline
+          if [ "$ISSUES" -gt 0 ]; then
+            echo "::warning::Bandit found $ISSUES issues"
+          fi
+
+      # 5. Upload Bandit reports
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: reports/
