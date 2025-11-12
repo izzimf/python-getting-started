@@ -34,15 +34,15 @@ jobs:
         mkdir -p reports
         mv bandit-report.html reports/
 
-    
+    # --- Install Java ---
     - name: Install Java
       run: sudo apt-get update && sudo apt-get install -y openjdk-17-jdk
 
-    # --- Install OWASP Dependency-Check CLI ---
+    # --- Install OWASP Dependency-Check CLI v8.3.2 ---
     - name: Install OWASP Dependency-Check
       run: |
-        wget https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.1/dependency-check-8.4.1-release.zip
-        unzip dependency-check-8.4.1-release.zip -d dependency-check
+        wget https://github.com/jeremylong/DependencyCheck/releases/download/v8.3.2/dependency-check-8.3.2-release.zip
+        unzip dependency-check-8.3.2-release.zip -d dependency-check
         chmod +x dependency-check/dependency-check/bin/dependency-check.sh
 
     # --- Run OWASP Dependency-Check ---
