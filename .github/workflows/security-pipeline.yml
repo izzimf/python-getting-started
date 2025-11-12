@@ -11,60 +11,48 @@ on:
 jobs:
   build-and-analyze:
     runs-on: ubuntu-latest
-    steps:
-      # Checkout the code
-      - name: Checkout repository
-        uses: actions/checkout@v3
 
-      # Setup Python
-      - name: Setup Python
+    steps:
+      # 1. Checkout the repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # Install Python dependencies
+      # 3. Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install bandit
 
-      # Run Bandit
-      - name: Run Bandit
+      # 4. Build / install the app (example for Django)
+      - name: Build / Install App
         run: |
-          mkdir -p bandit-report
-          bandit -r . -f html -o bandit-report/bandit-report.html || true
+          python manage.py migrate
+          python manage.py collectstatic --noinput
 
-      # Setup Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      # 5. Run Bandit and always keep HTML report
+      - name: Run Bandit security scan
+        run: |
+          mkdir -p reports
+          bandit -r . -f html -o reports/bandit-report.html || true
 
-      # Install Snyk CLI
-      - name: Install Snyk CLI
-        run: npm install -g snyk
-
-      # Authenticate Snyk
-      - name: Authenticate Snyk
-        run: snyk auth ${{ secrets.SNYK_TOKEN }}
-
-      # Run Snyk scan
+      # 6. Run Snyk scan (SCA) with token from secrets
       - name: Run Snyk scan
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
-          mkdir -p snyk-reports
-          snyk test --json > snyk-reports/snyk-report.json || true
+          mkdir -p reports
+          snyk test --json > reports/snyk-report.json || true
 
-      # Upload Bandit report
-      - name: Upload Bandit report
+      # 7. Upload reports as artifacts
+      - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
-          name: bandit-report
-          path: bandit-report/bandit-report.html
-
-      # Upload Snyk report
-      - name: Upload Snyk report
-        uses: actions/upload-artifact@v4
-        with:
-          name: snyk-report
-          path: snyk-reports/snyk-report.json
+          name: security-reports
+          path: reports/
