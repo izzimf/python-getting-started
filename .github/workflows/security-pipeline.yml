@@ -14,7 +14,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # --- Python setup ---
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -25,23 +24,24 @@ jobs:
         pip install -r requirements.txt || echo "No requirements file"
         pip install bandit
 
-    # --- 1️ SonarQube Scan (SAST) ---
+    # --- SonarQube Scan ---
     - name: SonarQube Scan
       uses: sonarsource/sonarqube-scan-action@v2
       with:
         projectBaseDir: .
+        args: >
+          -Dsonar.projectKey=python-getting-started
+          -Dsonar.organization=<your-organization-key>
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-    # --- 2️ Bandit Security Scan (SAST) ---
     - name: Run Bandit Security Scan
       run: |
         bandit -r . -f html -o bandit-report.html || true
         mkdir -p reports
         mv bandit-report.html reports/
 
-    # --- 3️ OWASP Dependency Check (SCA) ---
     - name: Install OWASP Dependency Check
       run: |
         sudo apt-get update
@@ -51,7 +51,6 @@ jobs:
       run: |
         dependency-check --project "PythonApp" --scan . --format "HTML" --out ./reports/
 
-    # --- 4️ Upload reports ---
     - name: Upload reports as artifacts
       uses: actions/upload-artifact@v4
       with:
