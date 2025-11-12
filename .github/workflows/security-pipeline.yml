@@ -39,14 +39,14 @@ jobs:
         unzip dependency-check-12.1.0-release.zip -d dependency-check
         chmod +x dependency-check/dependency-check/bin/dependency-check.sh
 
-    - name: Run OWASP Dependency-Check (skip NVD updates to avoid 403)
+    - name: Run OWASP Dependency-Check (skip NVD updates)
       run: |
         ./dependency-check/dependency-check/bin/dependency-check.sh \
           --project "PythonApp" \
           --scan . \
           --format "HTML" \
           --out ./reports/ \
-          --disableNvd
+          --noupdate
 
     - name: Upload reports as artifacts
       uses: actions/upload-artifact@v4
