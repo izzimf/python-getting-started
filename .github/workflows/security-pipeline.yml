@@ -31,21 +31,22 @@ jobs:
         mv bandit-report.html reports/
 
     - name: Install Java
-      run: sudo apt-get update && sudo apt-get install -y openjdk-17-jdk
+      run: sudo apt-get update && sudo apt-get install -y openjdk-17-jdk unzip wget
 
-    - name: Install OWASP Dependency-Check CLI v8.4.3
+    - name: Install OWASP Dependency-Check CLI v12.1.0
       run: |
-        wget https://github.com/dependency-check/DependencyCheck/releases/download/v8.4.3/dependency-check-8.4.3-release.zip
-        unzip dependency-check-8.4.3-release.zip -d dependency-check
+        wget https://github.com/jeremylong/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip
+        unzip dependency-check-12.1.0-release.zip -d dependency-check
         chmod +x dependency-check/dependency-check/bin/dependency-check.sh
 
-    - name: Run OWASP Dependency-Check
+    - name: Run OWASP Dependency-Check (skip NVD updates to avoid 403)
       run: |
         ./dependency-check/dependency-check/bin/dependency-check.sh \
           --project "PythonApp" \
           --scan . \
           --format "HTML" \
-          --out ./reports/
+          --out ./reports/ \
+          --disableNvd
 
     - name: Upload reports as artifacts
       uses: actions/upload-artifact@v4
