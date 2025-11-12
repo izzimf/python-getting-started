@@ -1,4 +1,4 @@
-name: Security CI Pipeline
+name: Security Pipeline
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  security-checks:
+  security:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,39 +17,38 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: "3.11"
 
-    - name: Install dependencies
+    - name: Install Bandit
+      run: pip install bandit
+
+    - name: Run Bandit SAST Scan
       run: |
-        pip install -r requirements.txt || echo "No requirements file"
-        pip install bandit
+        bandit -r . -f html -o bandit-report.html
 
-    - name: Run Bandit Security Scan
-      run: |
-        bandit -r . -f html -o bandit-report.html || true
-        mkdir -p reports
-        mv bandit-report.html reports/
-
-    - name: Install Java
-      run: sudo apt-get update && sudo apt-get install -y openjdk-17-jdk unzip wget
-
-    - name: Install OWASP Dependency-Check CLI v12.1.0
+    - name: Download OWASP Dependency-Check
       run: |
         wget https://github.com/jeremylong/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip
-        unzip dependency-check-12.1.0-release.zip -d dependency-check
-        chmod +x dependency-check/dependency-check/bin/dependency-check.sh
+        unzip dependency-check-12.1.0-release.zip
+        chmod +x dependency-check/bin/dependency-check.sh
 
-    - name: Run OWASP Dependency-Check (skip NVD updates)
+    - name: Run Dependency-Check SCA Scan
       run: |
-        ./dependency-check/dependency-check/bin/dependency-check.sh \
-          --project "PythonApp" \
+        ./dependency-check/bin/dependency-check.sh \
           --scan . \
-          --format "HTML" \
-          --out ./reports/ \
-          --noupdate
+          --format ALL \
+          --out dependency-check-report \
+          --project "python-getting-started" \
+          --nvdApiKey ${{ secrets.NVD_API_KEY }}
 
-    - name: Upload reports as artifacts
-      uses: actions/upload-artifact@v4
+    - name: Upload Bandit Report
+      uses: actions/upload-artifact@v3
       with:
-        name: security-reports
-        path: reports/
+        name: bandit-report
+        path: bandit-report.html
+
+    - name: Upload Dependency-Check Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-check-report
+        path: dependency-check-report/
