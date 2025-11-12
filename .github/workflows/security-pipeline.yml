@@ -11,46 +11,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # --- Checkout repository ---
     - name: Checkout repository
       uses: actions/checkout@v3
 
+    # --- Set up Python ---
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
 
+    # --- Install dependencies ---
     - name: Install dependencies
       run: |
         pip install -r requirements.txt || echo "No requirements file"
         pip install bandit
 
-    # --- SonarQube Scan ---
-    - name: SonarQube Scan
-      uses: sonarsource/sonarqube-scan-action@v2
-      with:
-        projectBaseDir: .
-        args: >
-          -Dsonar.projectKey=python-getting-started
-          -Dsonar.organization=<your-organization-key>
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN1 }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-    - name: Run Bandit Security Scan
+    # --- Run Bandit Security Scan ---
+    - name: Run Bandit
       run: |
         bandit -r . -f html -o bandit-report.html || true
         mkdir -p reports
         mv bandit-report.html reports/
 
-    - name: Install OWASP Dependency Check
+    # --- Install OWASP Dependency-Check ---
+    - name: Install OWASP Dependency-Check
       run: |
         sudo apt-get update
         sudo apt-get install -y dependency-check
 
-    - name: Run OWASP Dependency Check
+    # --- Run OWASP Dependency-Check ---
+    - name: Run Dependency-Check
       run: |
         dependency-check --project "PythonApp" --scan . --format "HTML" --out ./reports/
 
+    # --- Upload reports ---
     - name: Upload reports as artifacts
       uses: actions/upload-artifact@v4
       with:
