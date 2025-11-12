@@ -19,6 +19,9 @@ jobs:
       with:
         python-version: "3.11"
 
+    # ---------------------
+    # Bandit (Python SAST)
+    # ---------------------
     - name: Install Bandit
       run: pip install bandit
 
@@ -26,6 +29,15 @@ jobs:
       run: |
         bandit -r . -f html -o bandit-report.html
 
+    - name: Upload Bandit Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: bandit-report
+        path: bandit-report.html
+
+    # -------------------------
+    # OWASP Dependency-Check (SCA)
+    # -------------------------
     - name: Download OWASP Dependency-Check
       run: |
         wget https://github.com/jeremylong/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip
@@ -41,14 +53,8 @@ jobs:
           --project "python-getting-started" \
           --nvdApiKey ${{ secrets.NVD_API_KEY }}
 
-    - name: Upload Bandit Report
-      uses: actions/upload-artifact@v3
-      with:
-        name: bandit-report
-        path: bandit-report.html
-
     - name: Upload Dependency-Check Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dependency-check-report
         path: dependency-check-report/
